@@ -98,7 +98,6 @@ resource "aws_eip" "nat_gateway_1" {
   depends_on = [aws_internet_gateway.example_igw]
 }
 
-
 ## aws_nat_gateway
 resource "aws_nat_gateway" "nat_gateway_0" {
   allocation_id = aws_eip.nat_gateway_0.id
@@ -173,30 +172,6 @@ resource "aws_route_table_association" "public_1" {
   route_table_id = aws_route_table.public_1.id
 }
 
-
-
-
-#############################################################
-#### EC2インスタンス
-
-# ## aws_instance
-# resource "aws_instance" "example_ec2" {
-#   subnet_id     = aws_subnet.private_0.id
-#   ami           = var.ami_id
-#   instance_type = var.instance_type
-#   tags = {
-#     Name = "example_ec2"
-#   }
-# }
-
-# module "example_sg" {
-#   source      = "./security_group"
-#   name        = "module-sg"
-#   vpc_id      = aws_vpc.example_vpc.id
-#   port        = 80
-#   cidr_blocks = ["0.0.0.0/0"]
-# }
-
 #############################################################
 #### S3バケット
 # resource "aws_s3_bucket" "private" {
@@ -222,6 +197,46 @@ resource "aws_s3_bucket" "alb_log" {
     }
   }
 }
+
+#############################################################
+#### Route53
+
+data "aws_route53_zone" "example" {
+  name = "aws-manager.net" //実際にドメインを取得する必要がある
+}
+
+resource "aws_route53_record" "example" {
+  zone_id = data.aws_route53_zone.example.zone_id
+  name    = data.aws_route53_zone.example.name
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.example.dns_name
+    zone_id                = aws_lb.example.zone_id
+    evaluate_target_health = true
+  }
+}
+
+output "domain_name" {
+  value = aws_route53_record.example.name
+}
+
+#############################################################
+#### ACM
+
+resource "aws_acm_certificate" "example" {
+  domain_name       = "aws-manager.net"
+  validation_method = "DNS"
+
+  tags = {
+    Name = "aws-manager.net"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 
 #############################################################
 #### ALB
@@ -277,6 +292,8 @@ output "alb_dns_name" {
   value = aws_lb.example.dns_name
 }
 
+#############################################################
+#### ALBリスナー
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
   port              = "80"
@@ -293,28 +310,62 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# resource "aws_lb_listener" "https" {
+#   load_balancer_arn = aws_lb.example.arn
+#   port              = "443"
+#   protocol          = "HTTPS"
+#   certificate_arn   = aws_acm_certificate.example.arn
+#   ssl_policy        = "ELBSecurityPolicy-2016-08"
+
+#   default_action {
+#     type = "fixed-response"
+
+#     fixed_response {
+#       content_type = "text/plain"
+#       message_body = "これは『HTTPS』です"
+#       status_code  = "200"
+#     }
+#   }
+# }
+
+resource "aws_lb_listener" "redirect_http_to_https" {
+  load_balancer_arn = aws_lb.example.arn
+  port              = "8080"
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
 #############################################################
 #### TargetGroup
 
-# resource "alb_lb_target_group" "example" {
-#   name                 = "example"
-#   target_type          = "ip" //インスタンスIDを使う場合はinstanceを指定
-#   vpc_id               = aws_vpc.example_vpc.id
-#   port                 = 80
-#   protocol             = "HTTP"
-#   deregistration_delay = 300
+resource "aws_lb_target_group" "example" {
+  name                 = "example"
+  target_type          = "ip" //インスタンスIDを使う場合はinstanceを指定
+  vpc_id               = aws_vpc.example_vpc.id
+  port                 = 80
+  protocol             = "HTTP"
+  deregistration_delay = 300
 
-#   health_check {
-#     path                = "/"
-#     healthy_threshold   = 5
-#     unhealthy_threshold = 2
-#     timeout             = 5
-#     interval            = 30
-#     matcher             = 200
-#     port                = "traffic-port"
-#     protocol            = "HTTP"
-#   }
-# }
+  health_check {
+    path                = "/"
+    healthy_threshold   = 5
+    unhealthy_threshold = 2
+    timeout             = 5
+    interval            = 30
+    matcher             = 200
+    port                = "traffic-port"
+    protocol            = "HTTP"
+  }
+}
 
 
 # resource "aws_lb_listener" "example" {
@@ -334,31 +385,26 @@ resource "aws_lb_listener" "http" {
 
 
 #############################################################
-#### TargetGroup
+#### EC2インスタンス
+
+# ## aws_instance
+# resource "aws_instance" "example_ec2" {
+#   subnet_id     = aws_subnet.private_0.id
+#   ami           = var.ami_id
+#   instance_type = var.instance_type
+#   tags = {
+#     Name = "example_ec2"
+#   }
+# }
+
+# module "example_sg" {
+#   source      = "./security_group"
+#   name        = "module-sg"
+#   vpc_id      = aws_vpc.example_vpc.id
+#   port        = 80
+#   cidr_blocks = ["0.0.0.0/0"]
+# }
 
 
 
-
-#############################################################
-#### Route53 (実際にドメインを取得する必要がある)
-
-data "aws_route53_zone" "example" {
-  name = "aws-manager.net"
-}
-
-resource "aws_route53_record" "example" {
-  zone_id = data.aws_route53_zone.example.zone_id
-  name    = data.aws_route53_zone.example.name
-  type    = "A"
-
-  alias {
-    name                   = aws_lb.example.dns_name
-    zone_id                = aws_lb.example.zone_id
-    evaluate_target_health = true
-  }
-}
-
-output "domain_name" {
-  value = aws_route53_record.example.name
-}
 
