@@ -14,6 +14,7 @@ variable "ami_id" {
   default = "ami-0a211f4f633a3af5f"
 }
 
+
 ############################################################
 ### VPC
 
@@ -223,20 +224,39 @@ output "domain_name" {
 
 #############################################################
 #### ACM
+## ACMの取得は一旦手動にする
 
 resource "aws_acm_certificate" "example" {
   domain_name       = "aws-manager.net"
   validation_method = "DNS"
-
   tags = {
     Name = "aws-manager.net"
   }
-
   lifecycle {
     create_before_destroy = true
   }
 }
 
+# resource "aws_route53_record" "example_certificate" {
+#   for_each = {
+#     for domain_validation_option in aws_acm_certificate.example.domain_validation_options : domain_validation_option.domain_name => {
+#       name   = domain_validation_option.resource_record_name
+#       record = domain_validation_option.resource_record_value
+#       type   = domain_validation_option.resource_record_type
+#     }
+#   }
+#   allow_overwrite = true
+#   name            = each.value.name
+#   records         = [each.value.record]
+#   ttl             = 60
+#   type            = each.value.type
+#   zone_id         = data.aws_route53_zone.example.zone_id
+# }
+
+# resource "aws_acm_certificate_validation" "example" {
+#   certificate_arn         = aws_acm_certificate.example.arn
+#   validation_record_fqdns = [aws_route53_record.example_certificate.validation_record_fqdns]
+#}
 
 #############################################################
 #### ALB
@@ -265,7 +285,7 @@ module "http_redirect_sg" {
 }
 
 resource "aws_lb" "example" {
-  name                       = "example"
+  name                       = "aws-manager"
   load_balancer_type         = "application"
   internal                   = false
   idle_timeout               = 60
@@ -276,10 +296,10 @@ resource "aws_lb" "example" {
     aws_subnet.public_1.id,
   ]
 
-  access_logs {
-    bucket  = aws_s3_bucket.alb_log.id
-    enabled = true
-  }
+  # access_logs {
+  #   bucket  = aws_s3_bucket.alb_log.id
+  #   enabled = true
+  # }
 
   security_groups = [
     module.http_sg.security_group_id,
@@ -310,23 +330,23 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# resource "aws_lb_listener" "https" {
-#   load_balancer_arn = aws_lb.example.arn
-#   port              = "443"
-#   protocol          = "HTTPS"
-#   certificate_arn   = aws_acm_certificate.example.arn
-#   ssl_policy        = "ELBSecurityPolicy-2016-08"
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.example.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  certificate_arn   = aws_acm_certificate.example.arn
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
 
-#   default_action {
-#     type = "fixed-response"
+  default_action {
+    type = "fixed-response"
 
-#     fixed_response {
-#       content_type = "text/plain"
-#       message_body = "これは『HTTPS』です"
-#       status_code  = "200"
-#     }
-#   }
-# }
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "これは『HTTPS』です"
+      status_code  = "200"
+    }
+  }
+}
 
 resource "aws_lb_listener" "redirect_http_to_https" {
   load_balancer_arn = aws_lb.example.arn
@@ -343,6 +363,25 @@ resource "aws_lb_listener" "redirect_http_to_https" {
     }
   }
 }
+
+resource "aws_lb_listener_rule" "example" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.example.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+
+}
+
+
 
 #############################################################
 #### TargetGroup
@@ -368,29 +407,13 @@ resource "aws_lb_target_group" "example" {
 }
 
 
-# resource "aws_lb_listener" "example" {
-#   listener_arn = aws_lb_listener.https.arn
-#   priotity     = 100
-
-#   action {
-#     type            = "forward"
-#     Target_grup_arn = aws_lb_target_grop.example.arn
-#   }
-
-#   condition {
-#     field = "path-pattern"
-#     value = ["/*"]
-#   }
-# }
-
-
 #############################################################
 #### EC2インスタンス
 
 # ## aws_instance
 # resource "aws_instance" "example_ec2" {
 #   subnet_id     = aws_subnet.private_0.id
-#   ami           = var.ami_id
+#   ami           = .ami_idvar
 #   instance_type = var.instance_type
 #   tags = {
 #     Name = "example_ec2"
