@@ -335,7 +335,7 @@ resource "aws_lb_listener" "http" {
   port              = "80"
   protocol          = "HTTP"
   default_action {
-    type = "forward"
+    type             = "forward"
     target_group_arn = aws_lb_target_group.example.arn
   }
 }
@@ -347,7 +347,7 @@ resource "aws_lb_listener" "https" {
   certificate_arn   = aws_acm_certificate.example.arn
   ssl_policy        = "ELBSecurityPolicy-2016-08"
   default_action {
-    type = "forward"
+    type             = "forward"
     target_group_arn = aws_lb_target_group.example.arn
   }
 }
@@ -432,6 +432,20 @@ module "nginx_sg" {
   port        = 80
   cidr_blocks = [aws_vpc.example_vpc.cidr_block]
 }
+
+#############################################################
+#### CloudWatch Logs
+
+resource "aws_cloudwatch_log_group" "for_ecs" {
+  name              = "/ecs/example"
+  retention_in_days = 180
+}
+
+data "aws_iam_policy" "ecs_task_execution_role_policy" {
+  arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+
 
 
 
