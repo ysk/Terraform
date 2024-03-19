@@ -4,7 +4,7 @@ provider "aws" {
 }
 
 ############################################################
-#### パラメータ設定
+#### parameters
 
 variable "instance_type" {
   default = "t3.micro"
@@ -14,11 +14,9 @@ variable "ami_id" {
   default = "ami-0a211f4f633a3af5f"
 }
 
-
 ############################################################
 ### VPC
 
-## VPC
 resource "aws_vpc" "example_vpc" {
   cidr_block           = "10.0.0.0/16"
   instance_tenancy     = "default"
@@ -30,9 +28,8 @@ resource "aws_vpc" "example_vpc" {
 }
 
 ############################################################
-### パブリックサブネット
+### Public subnet
 
-## aws_subnet public_0
 resource "aws_subnet" "public_0" {
   vpc_id                  = aws_vpc.example_vpc.id
   cidr_block              = "10.0.1.0/24"
@@ -43,7 +40,6 @@ resource "aws_subnet" "public_0" {
   }
 }
 
-## aws_subnet public_1
 resource "aws_subnet" "public_1" {
   vpc_id                  = aws_vpc.example_vpc.id
   cidr_block              = "10.0.2.0/24"
@@ -55,9 +51,8 @@ resource "aws_subnet" "public_1" {
 }
 
 ############################################################
-### プライベートサブネット
+### Private subnet
 
-## aws_subnet private_0
 resource "aws_subnet" "private_0" {
   vpc_id                  = aws_vpc.example_vpc.id
   cidr_block              = "10.0.65.0/24"
@@ -67,7 +62,7 @@ resource "aws_subnet" "private_0" {
     Name = "example_private_1a"
   }
 }
-## aws_subnet private_1
+
 resource "aws_subnet" "private_1" {
   vpc_id                  = aws_vpc.example_vpc.id
   cidr_block              = "10.0.66.0/24"
@@ -79,32 +74,31 @@ resource "aws_subnet" "private_1" {
 }
 
 ############################################################
-### インターネットゲートウェイ
+### Internet Gateway
 
-## aws_internet_gateway
 resource "aws_internet_gateway" "example_igw" {
   vpc_id = aws_vpc.example_vpc.id
 }
 
 ############################################################
-### EIP・NATゲートウェイ
+### EIP・NAT Gateway
 
-## aws_eip
 resource "aws_eip" "nat_gateway_0" {
-  vpc        = true
-  depends_on = [aws_internet_gateway.example_igw]
-}
-resource "aws_eip" "nat_gateway_1" {
-  vpc        = true
+  domain     = "vpc"
   depends_on = [aws_internet_gateway.example_igw]
 }
 
-## aws_nat_gateway
+resource "aws_eip" "nat_gateway_1" {
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.example_igw]
+}
+
 resource "aws_nat_gateway" "nat_gateway_0" {
   allocation_id = aws_eip.nat_gateway_0.id
   subnet_id     = aws_subnet.public_0.id
   depends_on    = [aws_internet_gateway.example_igw]
 }
+
 resource "aws_nat_gateway" "nat_gateway_1" {
   allocation_id = aws_eip.nat_gateway_1.id
   subnet_id     = aws_subnet.public_1.id
@@ -112,19 +106,22 @@ resource "aws_nat_gateway" "nat_gateway_1" {
 }
 
 ############################################################
-### ルートテーブル(プライベート)
+### Route tables (private)
 
 resource "aws_route_table" "private_0" {
   vpc_id = aws_vpc.example_vpc.id
 }
+
 resource "aws_route_table" "private_1" {
   vpc_id = aws_vpc.example_vpc.id
 }
+
 resource "aws_route" "private_0" {
   route_table_id         = aws_route_table.private_0.id
   nat_gateway_id         = aws_nat_gateway.nat_gateway_0.id
   destination_cidr_block = "0.0.0.0/0"
 }
+
 resource "aws_route" "private_1" {
   route_table_id         = aws_route_table.private_1.id
   nat_gateway_id         = aws_nat_gateway.nat_gateway_1.id
@@ -141,13 +138,13 @@ resource "aws_route_table_association" "private_1" {
   route_table_id = aws_route_table.private_1.id
 }
 
-
 ############################################################
-### ルートテーブル（パブリック）
+### Route tables (public)
 
 resource "aws_route_table" "public_0" {
   vpc_id = aws_vpc.example_vpc.id
 }
+
 resource "aws_route_table" "public_1" {
   vpc_id = aws_vpc.example_vpc.id
 }
@@ -157,6 +154,7 @@ resource "aws_route" "public_0" {
   gateway_id             = aws_internet_gateway.example_igw.id
   destination_cidr_block = "0.0.0.0/0"
 }
+
 resource "aws_route" "public_1" {
   route_table_id         = aws_route_table.public_1.id
   gateway_id             = aws_internet_gateway.example_igw.id
@@ -174,27 +172,19 @@ resource "aws_route_table_association" "public_1" {
 }
 
 #############################################################
-#### S3バケット
-# resource "aws_s3_bucket" "private" {
-#   bucket = "tf-s3bucket-example"
-#   versioning {
-#     enabled = true
-#   }
-#   server_side_encryption_configuration {
-#     rule {
-#       apply_server_side_encryption_by_default {
-#         sse_algorithm = "AES256"
-#       }
-#     }
-#   }
-# }
+#### S3 Bucket
 
 resource "aws_s3_bucket" "alb_log" {
   bucket = "tf-alb-log-s3bucket-example"
-  lifecycle_rule {
-    enabled = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "alb_log" {
+  bucket = aws_s3_bucket.alb_log.id
+  rule {
+    status = "Enabled"
+    id     = "s3-example-lifecycle"
     expiration {
-      days = "180"
+      days = 180
     }
   }
 }
@@ -260,6 +250,7 @@ resource "aws_acm_certificate" "example" {
 
 #############################################################
 #### ALB
+
 module "http_sg" {
   source      = "./security_group"
   name        = "http-sg"
@@ -312,76 +303,6 @@ output "alb_dns_name" {
   value = aws_lb.example.dns_name
 }
 
-#############################################################
-#### ALBリスナー
-resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.example.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type = "fixed-response"
-
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "これは『HTTP』です"
-      status_code  = "200"
-    }
-  }
-}
-
-resource "aws_lb_listener" "https" {
-  load_balancer_arn = aws_lb.example.arn
-  port              = "443"
-  protocol          = "HTTPS"
-  certificate_arn   = aws_acm_certificate.example.arn
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
-
-  default_action {
-    type = "fixed-response"
-
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "これは『HTTPS』です"
-      status_code  = "200"
-    }
-  }
-}
-
-resource "aws_lb_listener" "redirect_http_to_https" {
-  load_balancer_arn = aws_lb.example.arn
-  port              = "8080"
-  protocol          = "HTTP"
-
-  default_action {
-    type = "redirect"
-
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
-    }
-  }
-}
-
-resource "aws_lb_listener_rule" "example" {
-  listener_arn = aws_lb_listener.https.arn
-  priority     = 100
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.example.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/*"]
-    }
-  }
-
-}
-
-
 
 #############################################################
 #### TargetGroup
@@ -406,15 +327,68 @@ resource "aws_lb_target_group" "example" {
   }
 }
 
+#############################################################
+#### ALB Listener
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.example.arn
+  port              = "80"
+  protocol          = "HTTP"
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.example.arn
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.example.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  certificate_arn   = aws_acm_certificate.example.arn
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.example.arn
+  }
+}
+
+resource "aws_lb_listener" "redirect_http_to_https" {
+  load_balancer_arn = aws_lb.example.arn
+  port              = "8080"
+  protocol          = "HTTP"
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "example" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 100
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.example.arn
+  }
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}
+
 
 #############################################################
-#### ECSクラスター
+#### ECS Cluster
 
 resource "aws_ecs_cluster" "example" {
   name = "example"
 }
 
-
+#### ECS Task
 resource "aws_ecs_task_definition" "example" {
   family                   = "example"
   requires_compatibilities = ["FARGATE"]
@@ -423,6 +397,43 @@ resource "aws_ecs_task_definition" "example" {
   memory                   = "512"
   container_definitions    = file("./container_definitions.json")
 }
+
+### ECS Service
+resource "aws_ecs_service" "example" {
+  name                              = "example"
+  cluster                           = aws_ecs_cluster.example.id
+  task_definition                   = aws_ecs_task_definition.example.arn
+  desired_count                     = 2
+  launch_type                       = "FARGATE"
+  platform_version                  = "1.3.0"
+  health_check_grace_period_seconds = 60
+  network_configuration {
+    assign_public_ip = false
+    security_groups  = [module.nginx_sg.security_group_id]
+    subnets = [
+      aws_subnet.private_0.id,
+      aws_subnet.private_1.id,
+    ]
+  }
+  load_balancer {
+    target_group_arn = aws_lb_target_group.example.arn
+    container_name   = "example"
+    container_port   = 80
+  }
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+}
+
+module "nginx_sg" {
+  source      = "./security_group"
+  name        = "nginx-sg"
+  vpc_id      = aws_vpc.example_vpc.id
+  port        = 80
+  cidr_blocks = [aws_vpc.example_vpc.cidr_block]
+}
+
+
 
 #############################################################
 #### EC2インスタンス

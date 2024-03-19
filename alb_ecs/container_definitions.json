@@ -3,10 +3,10 @@
     "name"        : "example",
     "image"       : "nginx:latest",
     "essential"   : true,
-    "portMapping" : [
+    "portMappings" : [
       {
         "protocol"     : "tcp",
-        "containerPort": 80
+        "ContainerPort": 80
       }
     ]
   }
