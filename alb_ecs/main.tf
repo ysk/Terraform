@@ -408,6 +408,23 @@ resource "aws_lb_target_group" "example" {
 
 
 #############################################################
+#### ECSクラスター
+
+resource "aws_ecs_cluster" "example" {
+  name = "example"
+}
+
+
+resource "aws_ecs_task_definition" "example" {
+  family                   = "example"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = "256"
+  memory                   = "512"
+  container_definitions    = file("./container_definitions.json")
+}
+
+#############################################################
 #### EC2インスタンス
 
 # ## aws_instance

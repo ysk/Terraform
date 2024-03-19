@@ -1,0 +1,14 @@
+[
+  {
+    "name"        : "example",
+    "image"       : "nginx:latest",
+    "essential"   : true,
+    "portMapping" : [
+      {
+        "protocol"     : "tcp",
+        "containerPort": 80
+      }
+    ]
+  }
+]
+
