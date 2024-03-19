@@ -434,42 +434,5 @@ module "nginx_sg" {
 }
 
 #############################################################
-#### CloudWatch Logs
-
-resource "aws_cloudwatch_log_group" "for_ecs" {
-  name              = "/ecs/example"
-  retention_in_days = 180
-}
-
-data "aws_iam_policy" "ecs_task_execution_role_policy" {
-  arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-
-
-
-
-#############################################################
-#### EC2インスタンス
-
-# ## aws_instance
-# resource "aws_instance" "example_ec2" {
-#   subnet_id     = aws_subnet.private_0.id
-#   ami           = .ami_idvar
-#   instance_type = var.instance_type
-#   tags = {
-#     Name = "example_ec2"
-#   }
-# }
-
-# module "example_sg" {
-#   source      = "./security_group"
-#   name        = "module-sg"
-#   vpc_id      = aws_vpc.example_vpc.id
-#   port        = 80
-#   cidr_blocks = ["0.0.0.0/0"]
-# }
-
-
-
+#### RDS
 
