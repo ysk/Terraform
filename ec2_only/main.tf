@@ -65,6 +65,7 @@ resource "aws_instance" "example" {
   instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.example_ec2.id]
   user_data              = file("./user_data.sh")
+  iam_instance_profile   = aws_iam_instance_profile.example.name
 }
 
 ############################################################
@@ -90,37 +91,15 @@ resource "aws_security_group" "example_ec2" {
 }
 
 ############################################################
-#### KMS
-
-resource "aws_kms_key" "example" {
-  description             = "Example Customer Master key"
-  enable_key_rotation     = true
-  is_enabled              = true
-  deletion_window_in_days = 30
-}
-
-resource "aws_kms_alias" "example" {
-  name          = "alias/example"
-  target_key_id = aws_kms_key.example.key_id
-}
-
-############################################################
 #### IAM
 
-data "aws_iam_policy_document" "allow_describe_regions" {
-  statement {
-    effect    = "Allow"
-    actions   = ["ec2:DescribeRegions"] #リージョン一覧を取得する
-    resources = ["*"]
-  }
+# AmazonSSMManagedInstanceCore policyを付加したロールを作成
+resource "aws_iam_role" "example" {
+  name               = "example"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
-resource "aws_iam_policy" "example" {
-  name   = "example"
-  policy = data.aws_iam_policy_document.allow_describe_regions.json
-}
-
-data "aws_iam_policy_document" "ec2_assume_role" {
+data "aws_iam_policy_document" "assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
@@ -130,20 +109,17 @@ data "aws_iam_policy_document" "ec2_assume_role" {
   }
 }
 
-resource "aws_iam_role" "example" {
-  name               = "example"
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+data "aws_iam_policy" "example_policy_ssm_managed_instance_core" {
+  arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-resource "aws_iam_role_policy_attachment" "example" {
+resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
   role       = aws_iam_role.example.name
-  policy_arn = aws_iam_policy.example.arn
+  policy_arn = data.aws_iam_policy.example_policy_ssm_managed_instance_core.arn
 }
 
+resource "aws_iam_instance_profile" "example" {
+  name = "example"
+  role = aws_iam_role.example.name
+}
 
-# module "describe_regions_for_ec2" {
-#   source     = "./iam_role"
-#   name       = "describe-regions-for-ec2"
-#   identifier = "ec2.amazonaws.com"
-#   policy     = data.aws_iam_policy_document.allow_describe_regions.json
-# }
