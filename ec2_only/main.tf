@@ -63,9 +63,9 @@ resource "aws_instance" "example" {
   subnet_id              = aws_subnet.example.id
   ami                    = var.ami_id
   instance_type          = var.instance_type
+  iam_instance_profile   = aws_iam_instance_profile.example.name
   vpc_security_group_ids = [aws_security_group.example_ec2.id]
   user_data              = file("./user_data.sh")
-  iam_instance_profile   = aws_iam_instance_profile.example.name
 }
 
 ############################################################

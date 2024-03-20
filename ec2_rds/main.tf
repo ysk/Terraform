@@ -76,6 +76,7 @@ resource "aws_instance" "example" {
   subnet_id              = aws_subnet.public_0.id
   ami                    = var.ami_id
   instance_type          = var.instance_type
+  iam_instance_profile   = aws_iam_instance_profile.example.name
   vpc_security_group_ids = [aws_security_group.example_ec2.id]
   user_data              = file("./user_data.sh")
 }
@@ -197,20 +198,13 @@ module "mysql_sg" {
 ############################################################
 #### IAM
 
-data "aws_iam_policy_document" "allow_describe_regions" {
-  statement {
-    effect    = "Allow"
-    actions   = ["ec2:DescribeRegions"] #リージョン一覧を取得する
-    resources = ["*"]
-  }
+# AmazonSSMManagedInstanceCore policyを付加したロールを作成
+resource "aws_iam_role" "example" {
+  name               = "example"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
-resource "aws_iam_policy" "example" {
-  name   = "example"
-  policy = data.aws_iam_policy_document.allow_describe_regions.json
-}
-
-data "aws_iam_policy_document" "ec2_assume_role" {
+data "aws_iam_policy_document" "assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
@@ -220,13 +214,16 @@ data "aws_iam_policy_document" "ec2_assume_role" {
   }
 }
 
-resource "aws_iam_role" "example" {
-  name               = "example"
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+data "aws_iam_policy" "example_policy_ssm_managed_instance_core" {
+  arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-resource "aws_iam_role_policy_attachment" "example" {
+resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
   role       = aws_iam_role.example.name
-  policy_arn = aws_iam_policy.example.arn
+  policy_arn = data.aws_iam_policy.example_policy_ssm_managed_instance_core.arn
 }
 
+resource "aws_iam_instance_profile" "example" {
+  name = "example"
+  role = aws_iam_role.example.name
+}
