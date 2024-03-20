@@ -17,13 +17,13 @@ variable "ami_id" {
 ############################################################
 ### VPC
 
-resource "aws_vpc" "example_vpc" {
+resource "aws_vpc" "example" {
   cidr_block           = "10.0.0.0/16"
   instance_tenancy     = "default"
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = {
-    "Name" = "example_vpc"
+    "Name" = "example"
   }
 }
 
@@ -31,7 +31,7 @@ resource "aws_vpc" "example_vpc" {
 ### Public subnet
 
 resource "aws_subnet" "public_0" {
-  vpc_id                  = aws_vpc.example_vpc.id
+  vpc_id                  = aws_vpc.example.id
   cidr_block              = "10.0.1.0/24"
   map_public_ip_on_launch = true
   availability_zone       = "ap-northeast-1a"
@@ -41,7 +41,7 @@ resource "aws_subnet" "public_0" {
 }
 
 resource "aws_subnet" "public_1" {
-  vpc_id                  = aws_vpc.example_vpc.id
+  vpc_id                  = aws_vpc.example.id
   cidr_block              = "10.0.2.0/24"
   map_public_ip_on_launch = true
   availability_zone       = "ap-northeast-1c"
@@ -54,7 +54,7 @@ resource "aws_subnet" "public_1" {
 ### Private subnet
 
 resource "aws_subnet" "private_0" {
-  vpc_id                  = aws_vpc.example_vpc.id
+  vpc_id                  = aws_vpc.example.id
   cidr_block              = "10.0.65.0/24"
   map_public_ip_on_launch = false
   availability_zone       = "ap-northeast-1a"
@@ -64,7 +64,7 @@ resource "aws_subnet" "private_0" {
 }
 
 resource "aws_subnet" "private_1" {
-  vpc_id                  = aws_vpc.example_vpc.id
+  vpc_id                  = aws_vpc.example.id
   cidr_block              = "10.0.66.0/24"
   map_public_ip_on_launch = false
   availability_zone       = "ap-northeast-1c"
@@ -77,7 +77,7 @@ resource "aws_subnet" "private_1" {
 ### Internet Gateway
 
 resource "aws_internet_gateway" "example_igw" {
-  vpc_id = aws_vpc.example_vpc.id
+  vpc_id = aws_vpc.example.id
 }
 
 ############################################################
@@ -109,11 +109,11 @@ resource "aws_nat_gateway" "nat_gateway_1" {
 ### Route tables (private)
 
 resource "aws_route_table" "private_0" {
-  vpc_id = aws_vpc.example_vpc.id
+  vpc_id = aws_vpc.example.id
 }
 
 resource "aws_route_table" "private_1" {
-  vpc_id = aws_vpc.example_vpc.id
+  vpc_id = aws_vpc.example.id
 }
 
 resource "aws_route" "private_0" {
@@ -142,11 +142,11 @@ resource "aws_route_table_association" "private_1" {
 ### Route tables (public)
 
 resource "aws_route_table" "public_0" {
-  vpc_id = aws_vpc.example_vpc.id
+  vpc_id = aws_vpc.example.id
 }
 
 resource "aws_route_table" "public_1" {
-  vpc_id = aws_vpc.example_vpc.id
+  vpc_id = aws_vpc.example.id
 }
 
 resource "aws_route" "public_0" {
@@ -254,7 +254,7 @@ resource "aws_acm_certificate" "example" {
 module "http_sg" {
   source      = "./security_group"
   name        = "http-sg"
-  vpc_id      = aws_vpc.example_vpc.id
+  vpc_id      = aws_vpc.example.id
   port        = 80
   cidr_blocks = ["0.0.0.0/0"]
 }
@@ -262,7 +262,7 @@ module "http_sg" {
 module "https_sg" {
   source      = "./security_group"
   name        = "https-sg"
-  vpc_id      = aws_vpc.example_vpc.id
+  vpc_id      = aws_vpc.example.id
   port        = 443
   cidr_blocks = ["0.0.0.0/0"]
 }
@@ -270,7 +270,7 @@ module "https_sg" {
 module "http_redirect_sg" {
   source      = "./security_group"
   name        = "https-redirect-sg"
-  vpc_id      = aws_vpc.example_vpc.id
+  vpc_id      = aws_vpc.example.id
   port        = 8080
   cidr_blocks = ["0.0.0.0/0"]
 }
@@ -286,11 +286,6 @@ resource "aws_lb" "example" {
     aws_subnet.public_0.id,
     aws_subnet.public_1.id,
   ]
-
-  # access_logs {
-  #   bucket  = aws_s3_bucket.alb_log.id
-  #   enabled = true
-  # }
 
   security_groups = [
     module.http_sg.security_group_id,
@@ -310,7 +305,7 @@ output "alb_dns_name" {
 resource "aws_lb_target_group" "example" {
   name                 = "example"
   target_type          = "ip" //インスタンスIDを使う場合はinstanceを指定
-  vpc_id               = aws_vpc.example_vpc.id
+  vpc_id               = aws_vpc.example.id
   port                 = 80
   protocol             = "HTTP"
   deregistration_delay = 300
@@ -428,13 +423,101 @@ resource "aws_ecs_service" "example" {
 module "nginx_sg" {
   source      = "./security_group"
   name        = "nginx-sg"
-  vpc_id      = aws_vpc.example_vpc.id
+  vpc_id      = aws_vpc.example.id
   port        = 80
-  cidr_blocks = [aws_vpc.example_vpc.cidr_block]
+  cidr_blocks = [aws_vpc.example.cidr_block]
+}
+
+
+############################################################
+#### KMS
+
+resource "aws_kms_key" "example" {
+  description             = "Example Customer Master key"
+  enable_key_rotation     = true
+  is_enabled              = true
+  deletion_window_in_days = 30
+}
+
+resource "aws_kms_alias" "example" {
+  name          = "alias/example"
+  target_key_id = aws_kms_key.example.key_id
 }
 
 #############################################################
 #### RDS
+
+resource "aws_db_parameter_group" "example" {
+  name   = "example"
+  family = "mysql8.0"
+
+  parameter {
+    name  = "character_set_database"
+    value = "utf8mb4"
+  }
+
+  parameter {
+    name  = "character_set_server"
+    value = "utf8mb4"
+  }
+}
+
+resource "aws_db_option_group" "example" {
+  name                     = "example"
+  option_group_description = "Terraform Option Group"
+  engine_name              = "mysql"
+  major_engine_version     = "8.0"
+  option {
+    option_name = "MARIADB_AUDIT_PLUGIN"
+  }
+}
+
+resource "aws_db_subnet_group" "example" {
+  name       = "example"
+  subnet_ids = [aws_subnet.private_0.id, aws_subnet.private_1.id]
+}
+
+resource "aws_db_instance" "example" {
+  identifier                  = "example"
+  engine                      = "mysql"
+  engine_version              = "8.0"
+  instance_class              = "db.t3.micro"
+  allocated_storage           = 20
+  max_allocated_storage       = 100
+  storage_type                = "gp2"
+  storage_encrypted           = true
+  kms_key_id                  = aws_kms_key.example.arn
+  username                    = "admin"
+  password                    = "muBTDfzH(Ds%,Zgq.!ShU9qv" //Dummy
+  multi_az                    = false
+  publicly_accessible         = false
+  allow_major_version_upgrade = false
+  auto_minor_version_upgrade  = true
+  backup_retention_period     = 1
+  copy_tags_to_snapshot       = true
+  delete_automated_backups    = true
+  deletion_protection         = false
+  skip_final_snapshot         = true
+  port                        = 3306
+  apply_immediately           = false
+  parameter_group_name        = aws_db_parameter_group.example.name
+  option_group_name           = aws_db_option_group.example.name
+  db_subnet_group_name        = aws_db_subnet_group.example.name
+  vpc_security_group_ids      = [module.mysql_sg.security_group_id]
+  lifecycle {
+    # passwordの変更はTerraformとして無視する。
+    # セキュリティの観点からインスタンス構築後、手動でパスワードを変更するため。
+    ignore_changes = [password]
+  }
+}
+
+module "mysql_sg" {
+  source      = "./security_group"
+  name        = "mysql-sg"
+  vpc_id      = aws_vpc.example.id
+  port        = 3306
+  cidr_blocks = [aws_vpc.example.cidr_block]
+}
 
 
 ############################################################
@@ -472,3 +555,5 @@ resource "aws_iam_role_policy_attachment" "example" {
   role       = aws_iam_role.example.name
   policy_arn = aws_iam_policy.example.arn
 }
+
+
