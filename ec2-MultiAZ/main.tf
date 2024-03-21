@@ -77,24 +77,24 @@ resource "aws_subnet" "private_1" {
 
 resource "aws_eip" "nat_gateway_0" {
   domain     = "vpc"
-  depends_on = [aws_internet_gateway.example_igw]
+  depends_on = [aws_internet_gateway.example]
 }
 
 resource "aws_eip" "nat_gateway_1" {
   domain     = "vpc"
-  depends_on = [aws_internet_gateway.example_igw]
+  depends_on = [aws_internet_gateway.example]
 }
 
 resource "aws_nat_gateway" "nat_gateway_0" {
   allocation_id = aws_eip.nat_gateway_0.id
   subnet_id     = aws_subnet.public_0.id
-  depends_on    = [aws_internet_gateway.example_igw]
+  depends_on    = [aws_internet_gateway.example]
 }
 
 resource "aws_nat_gateway" "nat_gateway_1" {
   allocation_id = aws_eip.nat_gateway_1.id
   subnet_id     = aws_subnet.public_1.id
-  depends_on    = [aws_internet_gateway.example_igw]
+  depends_on    = [aws_internet_gateway.example]
 }
 
 ############################################################
@@ -150,13 +150,13 @@ resource "aws_route_table" "public_1" {
 
 resource "aws_route" "public_0" {
   route_table_id         = aws_route_table.public_0.id
-  gateway_id             = aws_internet_gateway.example_igw.id
+  gateway_id             = aws_internet_gateway.example.id
   destination_cidr_block = "0.0.0.0/0"
 }
 
 resource "aws_route" "public_1" {
   route_table_id         = aws_route_table.public_1.id
-  gateway_id             = aws_internet_gateway.example_igw.id
+  gateway_id             = aws_internet_gateway.example.id
   destination_cidr_block = "0.0.0.0/0"
 }
 
@@ -168,6 +168,44 @@ resource "aws_route_table_association" "public_0" {
 resource "aws_route_table_association" "public_1" {
   subnet_id      = aws_subnet.public_1.id
   route_table_id = aws_route_table.public_1.id
+}
+
+#############################################################
+#### Route53
+
+data "aws_route53_zone" "example" {
+  name = "aws-manager.net" //実際にドメインを取得する必要がある
+}
+
+resource "aws_route53_record" "example" {
+  zone_id = data.aws_route53_zone.example.zone_id
+  name    = data.aws_route53_zone.example.name
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.example.dns_name
+    zone_id                = aws_lb.example.zone_id
+    evaluate_target_health = true
+  }
+}
+
+output "domain_name" {
+  value = aws_route53_record.example.name
+}
+
+#############################################################
+#### ACM
+## ACMの取得は一旦手動にする
+
+resource "aws_acm_certificate" "example" {
+  domain_name       = "aws-manager.net"
+  validation_method = "DNS"
+  tags = {
+    Name = "aws-manager.net"
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 #############################################################
@@ -297,13 +335,13 @@ resource "aws_lb_target_group" "example" {
 }
 
 // TargetGroupをinstanceに紐づける
-resource "aws_lb_target_group_attachment" "example" {
+resource "aws_lb_target_group_attachment" "for_web_server_a" {
   target_group_arn = aws_lb_target_group.example.arn
   target_id        = aws_instance.instance_0.id
   port             = 80
 }
 
-resource "aws_lb_target_group_attachment" "example" {
+resource "aws_lb_target_group_attachment" "for_web_server_c" {
   target_group_arn = aws_lb_target_group.example.arn
   target_id        = aws_instance.instance_1.id
   port             = 80
@@ -383,4 +421,6 @@ resource "aws_iam_instance_profile" "example" {
   name = "example"
   role = aws_iam_role.example.name
 }
+
+
 
