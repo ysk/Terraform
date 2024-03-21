@@ -17,3 +17,6 @@ variable "instance_type" {
   default = "t3.micro"
 }
 
+variable "github_token" {
+  default = ""
+}
