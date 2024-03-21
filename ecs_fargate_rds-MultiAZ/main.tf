@@ -1,18 +1,14 @@
 
 provider "aws" {
   region = "ap-northeast-1"
+  default_tags {
+    tags = {
+      Worker = "YusukeIkeda"
+      Date   = "2024/03/21"
+    }
+  }
 }
 
-############################################################
-#### parameters
-
-variable "instance_type" {
-  default = "t3.micro"
-}
-
-variable "ami_id" {
-  default = "ami-0a211f4f633a3af5f"
-}
 
 ############################################################
 ### VPC
