@@ -1,22 +1,22 @@
 terraformのテスト
 # Terraformの構成一覧
 
-## ec2_only
+## ec2-SingleAZ
 
 EC2をパブリックサブネットに配置する。シングル構成。<br>
-簡易的なテストをする時以外は使用しない。
+簡易的なテストをする時以外は使用しない。<br>
 インスタンスへの接続はSSMで行う。
 
 
-## ec2_rds
+## ec2_rds-SingleAZ
 
 ec2_onlyと同様、EC2をパブリックサブネットに配置する。シングル構成。<br>
-簡易的なテストをする時以外は使用しない。
+簡易的なテストをする時以外は使用しない。<br>
 インスタンスへの接続はSSMで行う。
 
-## ecs_fargate_rds
+## ecs_fargate_rds-MultiAZ
 
-ECS on Fargete構成の学習用で使用している。
+ECS on Fargete構成の学習用で使用している。<br>
 FargeteへのSSMへのログインの実装などが残タスクとしてある。
 
 
@@ -33,7 +33,7 @@ providersの確認
 ```
 terraform providers
 ```
-
+Multi-AZ配置とSingle-AZ
 プロバイダーの置換
 
 ```
