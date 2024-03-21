@@ -361,6 +361,9 @@ resource "aws_instance" "instance_1a" {
   iam_instance_profile   = aws_iam_instance_profile.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
   user_data              = file("./user_data.sh")
+  tags = {
+    Name = "${var.prefix}-${var.system_Name}-1a"
+  }
 }
 
 resource "aws_instance" "instance_1c" {
@@ -370,6 +373,9 @@ resource "aws_instance" "instance_1c" {
   iam_instance_profile   = aws_iam_instance_profile.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
   user_data              = file("./user_data.sh")
+  tags = {
+    Name = "${var.prefix}-${var.system_Name}-1c"
+  }
 }
 
 ############################################################
