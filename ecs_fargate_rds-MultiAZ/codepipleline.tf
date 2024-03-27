@@ -1,11 +1,14 @@
-############################################################
+# ############################################################
 #### ECR
-resource "aws_ecr_repository" "example" {
-  name = "example"
+resource "aws_ecr_repository" "this" {
+  name = "${var.prefix}-${var.system_Name}-repo"
+  tags = {
+    Name = "${var.prefix}-${var.system_Name}-repo"
+  }
 }
 
-resource "aws_ecr_lifecycle_policy" "example" {
-  repository = aws_ecr_repository.example.name
+resource "aws_ecr_lifecycle_policy" "this" {
+  repository = aws_ecr_repository.this.name
   policy     = <<EOF
   {
     "rules": [
@@ -27,8 +30,8 @@ resource "aws_ecr_lifecycle_policy" "example" {
 EOF
 }
 
-############################################################
-#### IAM CodeBuild
+# ############################################################
+# #### IAM CodeBuild
 
 data "aws_iam_policy_document" "codebuild" {
   statement {
@@ -64,8 +67,8 @@ module "codebuild_role" {
   policy     = data.aws_iam_policy_document.codebuild.json
 }
 
-resource "aws_codebuild_project" "example" {
-  name         = "example"
+resource "aws_codebuild_project" "this" {
+  name         = "${var.prefix}-${var.system_Name}-codebuild"
   service_role = module.codebuild_role.iam_role_arn
   source {
     type = "CODEPIPELINE"
@@ -81,9 +84,8 @@ resource "aws_codebuild_project" "example" {
   }
 }
 
-
-############################################################
-#### CodePipeline
+# ############################################################
+# #### CodePipeline
 
 data "aws_iam_policy_document" "codepipeline" {
   statement {
@@ -116,21 +118,24 @@ module "codepipeline_role" {
 
 resource "aws_s3_bucket" "artifact" {
   bucket = "tf-artifact-pragmatic-terraform"
-  lifecycle_rule {
-    enabled = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "artifact_configuration" {
+  bucket = aws_s3_bucket.artifact.id
+  rule {
+    id     = "artifact"
+    status = "Enabled"
     expiration {
-      days = "180"
+      days = 180
     }
   }
 }
 
-resource "aws_codepipeline" "example" {
-  name     = "example"
+resource "aws_codepipeline" "this" {
+  name     = "${var.prefix}-${var.system_Name}-codepipeline"
   role_arn = module.codepipeline_role.iam_role_arn
-
   stage {
     name = "Source"
-
     action {
       name             = "Source"
       category         = "Source"
@@ -160,7 +165,7 @@ resource "aws_codepipeline" "example" {
       input_artifacts  = ["Source"]
       output_artifacts = ["Build"]
       configuration = {
-        ProjectName = aws_codebuild_project.example.id
+        ProjectName = aws_codebuild_project.this.id
       }
     }
   }
@@ -175,10 +180,9 @@ resource "aws_codepipeline" "example" {
       provider        = "ECS"
       version         = 1
       input_artifacts = ["Build"]
-
       configuration = {
-        ClusterName = aws_ecs_cluster.example.name
-        ServiceName = aws_ecs_service.example.name
+        ClusterName = aws_ecs_cluster.this.name
+        ServiceName = aws_ecs_service.service.name
         FileName    = "imagedefinitions.json"
       }
     }
@@ -191,36 +195,36 @@ resource "aws_codepipeline" "example" {
 }
 
 
-resource "aws_codepipeline_webhook" "example" {
-  name            = "example"
-  target_pipeline = aws_codepipeline.example.name
-  target_action   = "Source"
-  authentication  = "GITHUB_HMAC"
-  authentication_configuration {
-    secret_token = "zM8mcASvNC)pLF-LNCqtkQ3Y" // dummy
-  }
-  filter {
-    json_path    = "$.ref"
-    match_equals = "refs/heads/{Branch}"
-  }
-}
+# resource "aws_codepipeline_webhook" "main" {
+#   name            = "webhook"
+#   target_pipeline = aws_codepipeline.this.name
+#   target_action   = "Source"
+#   authentication  = "GITHUB_HMAC"
+#   authentication_configuration {
+#     secret_token = "zM8mcASvNC)pLF-LNCqtkQ3Y" // dummy
+#   }
+#   filter {
+#     json_path    = "$.ref"
+#     match_equals = "refs/heads/{Branch}"
+#   }
+#   filter {
+#     json_path    = "$.head_commit.modified.*"
+#     match_equals = "placeholder-file"
+#   }
+# }
+
 
 ############################################################
 #### GitHub
 
-provider "github" {
-  organization = "ysk"
-}
+# resource "github_repository_webhook" "this" {
+#   repository = "codepipeline_test_repository"
 
-resource "github_repository_webhook" "example" {
-  repository = "codepipeline_test_repository"
-
-  configuration {
-    url          = aws_codepipeline_webhook.example.url
-    secret       = "zM8mcASvNC)pLF-LNCqtkQ3Y" // dummy
-    content_type = "json"
-    insecure_ssl = false
-  }
-
-  events = ["push"]
-}
+#   configuration {
+#     url          = aws_codepipeline_webhook.main.url
+#     content_type = "json"
+#     insecure_ssl = false
+#     secret       = "zM8mcASvNC)pLF-LNCqtkQ3Y" // dummy
+#   }
+#   events = ["push"]
+# }

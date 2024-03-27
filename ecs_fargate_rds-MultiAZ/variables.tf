@@ -2,7 +2,7 @@
 #### parameters
 
 variable "system_Name" {
-  default = "SystemName"
+  default = "systemname"
 }
 
 variable "prefix" {
