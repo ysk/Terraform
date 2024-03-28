@@ -24,8 +24,8 @@ FargeteへのSSMへのログインの実装などが残タスクとしてある�
 
 ## s3_cloudfront
 
-CloudFront+S3構成のサイトを実装する際に使う。
-デプロイはGitHub Actionsで行う想定。
+CloudFront+S3構成のサイトを実装する際に使う。<br>
+デプロイはGitHub Actionsで行う想定。<br>
 残タスクとしてGitHub Actionsの設定のセキュリティ向上などがある。
 
 下記のようなエラーが表示される場合がある
