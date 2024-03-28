@@ -257,7 +257,7 @@ resource "aws_acm_certificate" "example" {
 #### ALB
 
 module "http_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "http-sg"
   vpc_id      = aws_vpc.this.id
   port        = 80
@@ -266,7 +266,7 @@ module "http_sg" {
 }
 
 module "https_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "https-sg"
   vpc_id      = aws_vpc.this.id
   port        = 443
@@ -274,7 +274,7 @@ module "https_sg" {
 }
 
 module "http_redirect_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "https-redirect-sg"
   vpc_id      = aws_vpc.this.id
   port        = 8080
@@ -402,7 +402,7 @@ resource "aws_ecs_task_definition" "web" {
   network_mode             = "awsvpc"
   cpu                      = "256"
   memory                   = "512"
-  container_definitions    = file("./container_definitions.json")
+  container_definitions    = file("./json/container_definitions.json")
 }
 
 ### ECS Service
@@ -433,7 +433,7 @@ resource "aws_ecs_service" "service" {
 }
 
 module "nginx_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "nginx-sg"
   vpc_id      = aws_vpc.this.id
   port        = 80
@@ -527,7 +527,7 @@ resource "aws_db_instance" "this" {
 }
 
 module "mysql_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "mysql-sg"
   vpc_id      = aws_vpc.this.id
   port        = 3306

@@ -216,7 +216,7 @@ resource "aws_acm_certificate" "this" {
 #### ALB
 
 module "http_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "http-sg"
   vpc_id      = aws_vpc.this.id
   port        = 80
@@ -224,7 +224,7 @@ module "http_sg" {
 }
 
 module "https_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "https-sg"
   vpc_id      = aws_vpc.this.id
   port        = 443
@@ -232,7 +232,7 @@ module "https_sg" {
 }
 
 module "http_redirect_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "https-redirect-sg"
   vpc_id      = aws_vpc.this.id
   port        = 8080
@@ -360,7 +360,7 @@ resource "aws_instance" "instance_1a" {
   instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
-  user_data              = file("./user_data.sh")
+  user_data              = file("./sh/user_data.sh")
   tags = {
     Name = "${var.prefix}-${var.system_Name}-1a"
   }
@@ -372,7 +372,7 @@ resource "aws_instance" "instance_1c" {
   instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
-  user_data              = file("./user_data.sh")
+  user_data              = file("./sh/user_data.sh")
   tags = {
     Name = "${var.prefix}-${var.system_Name}-1c"
   }

@@ -81,7 +81,7 @@ resource "aws_instance" "this" {
   instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
-  user_data              = file("./user_data.sh")
+  user_data              = file("./sh/user_data.sh")
 }
 
 ############################################################
@@ -195,7 +195,7 @@ resource "aws_db_instance" "this" {
 }
 
 module "mysql_sg" {
-  source      = "./security_group"
+  source      = "./modules/security_group"
   name        = "mysql-sg"
   vpc_id      = aws_vpc.this.id
   port        = 3306
