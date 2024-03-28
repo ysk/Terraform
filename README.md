@@ -21,6 +21,11 @@ ec2-SingleAZと同様、EC2をパブリックサブネットに配置する。<b
 ECS on Fargete構成の学習用で使用している。<br>
 FargeteへのSSMへのログインの実装などが残タスクとしてある。
 
+## eks-MultiAZ
+
+学習用。<br>
+Kubernetesを使った構成について学ぶ。
+
 
 ## s3_cloudfront
 
